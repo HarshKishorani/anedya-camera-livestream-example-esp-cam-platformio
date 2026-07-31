@@ -1,11 +1,30 @@
 [<img src="https://img.shields.io/badge/Anedya-Documentation-blue?style=for-the-badge">](https://docs.anedya.io?utm_source=github&utm_medium=link&utm_campaign=github-examples&utm_content=esp-cam)
 
-# XIAO ESP32S3 Sense — WebRTC Camera Livestream with Anedya (Arduino)
+# ESP32 Camera — WebRTC Camera Livestream with Anedya (Arduino)
 
 Arduino port of the [ESP-IDF example](../anedya-camera-livestream-example-esp-cam). Same
-device, same protocol, same browser viewer — written with the Arduino API
+devices, same protocol, same browser viewer — written with the Arduino API
 (`setup()` / `loop()`, `WiFi.h`, PubSubClient, ArduinoJson, `esp_camera`)
 instead of raw ESP-IDF.
+
+## 📟 Supported Boards
+
+| Board | Chip | Flash / PSRAM | PlatformIO environment |
+|---|---|---|---|
+| Seeed Studio XIAO ESP32S3 **Sense** | ESP32-S3 | 8 MB / 8 MB **octal** | `seeed_xiao_esp32s3` |
+| ESP32-CAM style — AI Thinker, DFRobot, clones | ESP32 | 4 MB / 4 MB **quad** | `esp32cam` |
+
+Pick one at build time; there is nothing to edit in the source:
+
+```bash
+pio run -e seeed_xiao_esp32s3 -t upload -t monitor
+pio run -e esp32cam           -t upload -t monitor
+```
+
+The environment supplies the camera pin map (`-DCAMERA_MODEL_*`) and the
+partition table, and ESP-IDF picks up the matching `sdkconfig.defaults.<target>`
+for flash size and PSRAM mode. This mirrors how the ESP-IDF example switches
+boards with `idf.py set-target`.
 
 ## ✨ Features
 
@@ -90,12 +109,15 @@ as binary messages on a DataChannel labeled `jpeg-test`; the browser updates an
 
 ```
 .
-├── platformio.ini            — pioarduino platform, framework = arduino, espidf
-├── sdkconfig.defaults        — DTLS-SRTP, octal PSRAM, 1 kHz tick, partitions
-├── partitions.csv            — 8 MB flash, single factory app
+├── platformio.ini            — pioarduino platform, one [env:] per board
+├── sdkconfig.defaults        — shared: DTLS-SRTP, PSK, 1 kHz tick
+├── sdkconfig.defaults.esp32s3 — XIAO: 8 MB flash, octal PSRAM, USB console
+├── sdkconfig.defaults.esp32  — ESP32-CAM: 4 MB flash, quad PSRAM + cache erratum
+├── partitions.esp32s3.csv    — 8 MB flash, single factory app
+├── partitions.csv            — 4 MB flash, single factory app
 ├── include/
 │   ├── app_config.h          — ★ WiFi + Anedya credentials + all tuning
-│   ├── camera_pins.h         — camera pin map (XIAO ESP32S3 Sense / AI Thinker)
+│   ├── camera_pins.h         — camera pin maps, selected by -DCAMERA_MODEL_*
 │   ├── anedya_signaling.h
 │   └── webrtc_peer.h
 ├── src/
@@ -114,6 +136,8 @@ as binary messages on a DataChannel labeled `jpeg-test`; the browser updates an
 |---|---|
 | `anedya/anedya-esp` SDK | PubSubClient + ArduinoJson against the same MQTT endpoints |
 | `menuconfig` / `Kconfig.projbuild` | `include/app_config.h` |
+| `idf.py set-target esp32/esp32s3` | `pio run -e esp32cam` / `-e seeed_xiao_esp32s3` |
+| `boards.h` + `CONFIG_CAMERA_BOARD_*` | `camera_pins.h` + `-DCAMERA_MODEL_*` per env |
 | `protocol_examples_common` `example_connect()` | `WiFi.begin()` |
 | `app_main()` + `jpeg_stream_task` FreeRTOS task | `setup()` + `loop()` |
 | `esp_peer` peer-loop task | unchanged — still its own core-pinned task |
@@ -127,10 +151,18 @@ identical, so **the same browser viewer drives either firmware.**
 
 ### What You Need
 
-**Hardware**
-- Seeed Studio XIAO ESP32S3 **Sense** (the Sense expansion board carries the
-  OV2640 camera; the plain XIAO ESP32S3 has no camera)
-- USB-C cable
+**Hardware** — either board
+
+- Seeed Studio XIAO ESP32S3 **Sense** + USB-C cable. The Sense expansion board
+  carries the OV2640 camera; the plain XIAO ESP32S3 has no camera. Native USB,
+  so no programmer needed.
+- An ESP32-CAM style board (AI Thinker, DFRobot, clones) **+ a USB-to-serial
+  programmer** (FTDI, CP2102). These modules have no USB port of their own.
+
+> [!IMPORTANT]
+> Both boards need PSRAM — a single HVGA JPEG frame buffer is far larger than
+> the free internal DRAM, so without it `esp_camera_init()` fails outright.
+> ESP32-CAM boards sold without PSRAM will not work with this example.
 
 **Software / Accounts**
 - [PlatformIO](https://platformio.org/install) (VS Code extension or `pip install platformio`)
@@ -177,13 +209,25 @@ The Node ID is **not** needed in firmware — it goes in the browser viewer.
 
 ### Step 3: Build & Flash
 
+Choose the environment for your board:
+
 ```bash
 cd anedya-camera-livestream-example-esp-cam-arduino
-pio run -t upload -t monitor
+
+# Seeed XIAO ESP32S3 Sense
+pio run -e seeed_xiao_esp32s3 -t upload -t monitor
+
+# ESP32-CAM style board (AI Thinker, DFRobot, clones)
+pio run -e esp32cam -t upload -t monitor
 ```
 
 The first build downloads the pioarduino toolchain and the `esp_peer` /
 `esp32-camera` managed components — expect several minutes. Later builds are fast.
+
+**Flashing an ESP32-CAM board:** wire the programmer (5V, GND, U0T→RX, U0R→TX),
+connect **IO0 to GND**, press reset to enter the bootloader, upload, then
+**disconnect IO0** and reset again. IO0 doubles as the camera's XCLK pin, so the
+camera will not run while it is strapped to ground.
 
 A healthy boot looks like:
 
@@ -269,34 +313,52 @@ Consequences, both handled in the code:
 
 ## 🔧 Hardware
 
-### Board — Seeed Studio XIAO ESP32S3 Sense
-
-| Property | Value |
-|---|---|
-| Chip | ESP32-S3 (dual-core Xtensa LX7, 240 MHz) |
-| Flash | 8 MB |
-| PSRAM | 8 MB **octal** SPI |
-| USB | native (USB Serial/JTAG — no UART bridge) |
-| Camera | OV2640 on the Sense expansion board |
+| Property | Seeed XIAO ESP32S3 Sense | ESP32-CAM style |
+|---|---|---|
+| Chip | ESP32-S3 (dual Xtensa LX7, 240 MHz) | ESP32 (dual Xtensa LX6, 160 MHz) |
+| Flash | 8 MB | 4 MB |
+| PSRAM | 8 MB **octal** SPI | 4 MB **quad** SPI |
+| USB | native USB Serial/JTAG | none — external programmer |
+| Camera | OV2640 (Sense expansion board) | OV2640 / OV3660 |
 
 > [!IMPORTANT]
-> PSRAM is mandatory. Without it `esp_camera_init()` fails — a single HVGA JPEG
-> frame buffer is far bigger than the free internal DRAM. The XIAO uses **octal**
-> PSRAM; `CONFIG_SPIRAM_MODE_OCT=y` in `sdkconfig.defaults` handles that. Quad
-> mode silently reports "no PSRAM found".
+> PSRAM mode is not interchangeable. The XIAO needs `CONFIG_SPIRAM_MODE_OCT=y`,
+> ESP32-CAM needs `CONFIG_SPIRAM_MODE_QUAD=y` — the wrong one silently reports
+> "no PSRAM found" and camera init then fails. Each board's
+> `sdkconfig.defaults.<target>` sets this, so it is only a concern if you add a
+> new board.
 
-### Camera pin map (XIAO ESP32S3 Sense)
+> [!NOTE]
+> The original ESP32 has a silicon erratum where PSRAM access can corrupt data
+> while certain libc routines run from flash. `sdkconfig.defaults.esp32` enables
+> `CONFIG_SPIRAM_CACHE_WORKAROUND` and relocates those routines into IRAM. That
+> is why the ESP32 build has noticeably less internal RAM free than the S3 one.
 
-| Signal | GPIO | | Signal | GPIO |
-|---|---|---|---|---|
-| PWDN | — | | D7 | 48 |
-| RESET | — | | D6 | 11 |
-| XCLK | 10 | | D5 | 12 |
-| SIOD (SDA) | 40 | | D4 | 14 |
-| SIOC (SCL) | 39 | | D3 | 16 |
-| VSYNC | 38 | | D2 | 18 |
-| HREF | 47 | | D1 | 17 |
-| PCLK | 13 | | D0 | 15 |
+### Camera pin maps
+
+| Signal | XIAO ESP32S3 Sense | ESP32-CAM |
+|---|---|---|
+| PWDN | — | 32 |
+| RESET | — | — |
+| XCLK | 10 | 0 |
+| SIOD (SDA) | 40 | 26 |
+| SIOC (SCL) | 39 | 27 |
+| D7 | 48 | 35 |
+| D6 | 11 | 34 |
+| D5 | 12 | 39 |
+| D4 | 14 | 36 |
+| D3 | 16 | 21 |
+| D2 | 18 | 19 |
+| D1 | 17 | 18 |
+| D0 | 15 | 5 |
+| VSYNC | 38 | 25 |
+| HREF | 47 | 23 |
+| PCLK | 13 | 22 |
+
+Both maps live in [include/camera_pins.h](include/camera_pins.h). To add a
+board: add an `#elif` block there, an `[env:...]` in `platformio.ini` with a
+matching `-DCAMERA_MODEL_*`, and — if its flash size or PSRAM mode differs — a
+`sdkconfig.defaults.<target>` file.
 
 ---
 
@@ -304,8 +366,10 @@ Consequences, both handled in the code:
 
 | Symptom | Cause / fix |
 |---|---|
-| No serial output at all | The XIAO has no UART bridge. `sdkconfig.defaults` sets `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` so IDF logs and `Serial` share the USB port. If the port vanishes after flashing, double-tap the reset button to enter bootloader. |
-| `Camera init failed: 0x105` | PSRAM not up, or the Sense expansion board is not seated. Check the boot log says `PSRAM: yes (8192 KB)`. |
+| No serial output — XIAO | It has no UART bridge. `sdkconfig.defaults.esp32s3` sets `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` so IDF logs and `Serial` share the USB port. If the port vanishes after flashing, double-tap reset to enter the bootloader. |
+| No serial output — ESP32-CAM | Console is UART0 at 115200 through the programmer. Check U0T→RX / U0R→TX are not swapped, and that IO0 is **disconnected** from GND (strapped low it stays in the bootloader). |
+| ESP32-CAM won't enter bootloader | IO0 must be tied to GND *before* reset, and the 5V pin needs a supply that can hold ~500 mA. Many programmers cannot, which shows up as `Brownout detector was triggered`. |
+| `Camera init failed: 0x105` | PSRAM not up, or the camera is not seated. Check the boot log line `PSRAM: yes (…)`. On ESP32-CAM confirm the board actually has PSRAM — the cheapest clones ship without it. |
 | `Anedya broker connect failed, rc=-2` | TLS/DNS. Check WiFi, and check the NTP sync line — an unset clock makes the broker certificate look expired. |
 | Offer arrives but nothing happens | Raise the log level: `esp_log_level_set("anedya_signaling", ESP_LOG_DEBUG);` in `setup()`. |
 | `Offer too large` | The compressed offer exceeded `OFFER_DEFLATE_MAX_BYTES`. The viewer already refuses offers over ~950 base64 bytes. |

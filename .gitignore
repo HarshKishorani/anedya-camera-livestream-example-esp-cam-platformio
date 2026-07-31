@@ -2,7 +2,12 @@
 .vscode/
 managed_components/
 dependencies.lock
-sdkconfig
-sdkconfig.old
 build/
 CMakeLists.txt.user
+
+# PlatformIO/ESP-IDF generate one sdkconfig per environment. The checked-in
+# inputs are sdkconfig.defaults and sdkconfig.defaults.<target> — keep those.
+sdkconfig
+sdkconfig.old
+sdkconfig.seeed_xiao_esp32s3
+sdkconfig.esp32cam

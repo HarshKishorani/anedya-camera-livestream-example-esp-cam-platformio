@@ -46,9 +46,18 @@
 // -----------------------------------------------------------------------------
 // 3. Board
 // -----------------------------------------------------------------------------
-// Pick the camera pin map. Only one may be defined; see camera_pins.h.
+// Normally you do NOT edit this — the board comes from the PlatformIO
+// environment you build, which passes the macro as a build flag:
+//
+//   pio run -e seeed_xiao_esp32s3   ->  -DCAMERA_MODEL_XIAO_ESP32S3
+//   pio run -e esp32cam             ->  -DCAMERA_MODEL_AI_THINKER
+//
+// That also picks up the right flash size, PSRAM mode and partition table via
+// sdkconfig.defaults.<target>. Building outside those environments falls back
+// to the XIAO map. Pin maps live in camera_pins.h.
+#if !defined(CAMERA_MODEL_XIAO_ESP32S3) && !defined(CAMERA_MODEL_AI_THINKER)
 #define CAMERA_MODEL_XIAO_ESP32S3
-// #define CAMERA_MODEL_AI_THINKER
+#endif
 
 // -----------------------------------------------------------------------------
 // 4. Camera stream profile
