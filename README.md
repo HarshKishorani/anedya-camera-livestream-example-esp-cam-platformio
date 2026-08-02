@@ -12,14 +12,21 @@ instead of raw ESP-IDF.
 | Board | Chip | Flash / PSRAM | PlatformIO environment |
 |---|---|---|---|
 | Seeed Studio XIAO ESP32S3 **Sense** | ESP32-S3 | 8 MB / 8 MB **octal** | `seeed_xiao_esp32s3` |
-| ESP32-CAM style — AI Thinker, DFRobot, clones | ESP32 | 4 MB / 4 MB **quad** | `esp32cam` |
+| DFRobot FireBeetle 2 ESP32-S3 (N16R8) | ESP32-S3 | 16 MB / 8 MB **octal** | `dfrobot_firebeetle2_esp32s3` |
+| DFRobot Romeo ESP32-S3 | ESP32-S3 | 16 MB / 8 MB **octal** | `dfrobot_romeo_esp32s3` |
+| ESP32-CAM style — AI Thinker and clones | ESP32 | 4 MB / 4 MB **quad** | `esp32cam` |
 
 Pick one at build time; there is nothing to edit in the source:
 
 ```bash
-pio run -e seeed_xiao_esp32s3 -t upload -t monitor
-pio run -e esp32cam           -t upload -t monitor
+pio run -e seeed_xiao_esp32s3          -t upload -t monitor
+pio run -e dfrobot_firebeetle2_esp32s3 -t upload -t monitor
+pio run -e dfrobot_romeo_esp32s3       -t upload -t monitor
+pio run -e esp32cam                    -t upload -t monitor
 ```
+
+The two DFRobot S3 boards share one camera pinout, so they share a pin map
+(`CAMERA_MODEL_DFROBOT_ESP32S3`) — they differ only in their board manifests.
 
 The environment supplies the camera pin map (`-DCAMERA_MODEL_*`) and the
 partition table, and ESP-IDF picks up the matching `sdkconfig.defaults.<target>`
@@ -313,13 +320,16 @@ Consequences, both handled in the code:
 
 ## 🔧 Hardware
 
-| Property | Seeed XIAO ESP32S3 Sense | ESP32-CAM style |
-|---|---|---|
-| Chip | ESP32-S3 (dual Xtensa LX7, 240 MHz) | ESP32 (dual Xtensa LX6, 160 MHz) |
-| Flash | 8 MB | 4 MB |
-| PSRAM | 8 MB **octal** SPI | 4 MB **quad** SPI |
-| USB | native USB Serial/JTAG | none — external programmer |
-| Camera | OV2640 (Sense expansion board) | OV2640 / OV3660 |
+| Property | Seeed XIAO ESP32S3 Sense | DFRobot ESP32-S3 | ESP32-CAM style |
+|---|---|---|---|
+| Chip | ESP32-S3 (dual LX7, 240 MHz) | ESP32-S3 (dual LX7, 240 MHz) | ESP32 (dual LX6, 160 MHz) |
+| Flash | 8 MB | 16 MB | 4 MB |
+| PSRAM | 8 MB **octal** | 8 MB **octal** | 4 MB **quad** |
+| USB | native USB Serial/JTAG | native USB Serial/JTAG | none — external programmer |
+| Camera | OV2640 (Sense board) | OV2640 (FPC connector) | OV2640 / OV3660 |
+
+The firmware is ~1.33 MB, so the 8 MB partition table is reused unchanged on
+the 16 MB DFRobot boards — they simply leave the upper 8 MB unpartitioned.
 
 > [!IMPORTANT]
 > PSRAM mode is not interchangeable. The XIAO needs `CONFIG_SPIRAM_MODE_OCT=y`,
@@ -336,24 +346,28 @@ Consequences, both handled in the code:
 
 ### Camera pin maps
 
-| Signal | XIAO ESP32S3 Sense | ESP32-CAM |
-|---|---|---|
-| PWDN | — | 32 |
-| RESET | — | — |
-| XCLK | 10 | 0 |
-| SIOD (SDA) | 40 | 26 |
-| SIOC (SCL) | 39 | 27 |
-| D7 | 48 | 35 |
-| D6 | 11 | 34 |
-| D5 | 12 | 39 |
-| D4 | 14 | 36 |
-| D3 | 16 | 21 |
-| D2 | 18 | 19 |
-| D1 | 17 | 18 |
-| D0 | 15 | 5 |
-| VSYNC | 38 | 25 |
-| HREF | 47 | 23 |
-| PCLK | 13 | 22 |
+| Signal | XIAO ESP32S3 Sense | DFRobot ESP32-S3 | ESP32-CAM |
+|---|---|---|---|
+| PWDN | — | — | 32 |
+| RESET | — | — | — |
+| XCLK | 10 | 45 | 0 |
+| SIOD (SDA) | 40 | 1 | 26 |
+| SIOC (SCL) | 39 | 2 | 27 |
+| D7 | 48 | 48 | 35 |
+| D6 | 11 | 46 | 34 |
+| D5 | 12 | 8 | 39 |
+| D4 | 14 | 7 | 36 |
+| D3 | 16 | 4 | 21 |
+| D2 | 18 | 41 | 19 |
+| D1 | 17 | 40 | 18 |
+| D0 | 15 | 39 | 5 |
+| VSYNC | 38 | 6 | 25 |
+| HREF | 47 | 42 | 23 |
+| PCLK | 13 | 5 | 22 |
+
+DFRobot pin values are from arduino-esp32's `CameraWebServer/camera_pins.h`,
+where they are spelled `CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3` /
+`_Romeo_ESP32S3`.
 
 Both maps live in [include/camera_pins.h](include/camera_pins.h). To add a
 board: add an `#elif` block there, an `[env:...]` in `platformio.ini` with a

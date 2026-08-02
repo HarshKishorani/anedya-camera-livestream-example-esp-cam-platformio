@@ -49,13 +49,16 @@
 // Normally you do NOT edit this — the board comes from the PlatformIO
 // environment you build, which passes the macro as a build flag:
 //
-//   pio run -e seeed_xiao_esp32s3   ->  -DCAMERA_MODEL_XIAO_ESP32S3
-//   pio run -e esp32cam             ->  -DCAMERA_MODEL_AI_THINKER
+//   pio run -e seeed_xiao_esp32s3            ->  -DCAMERA_MODEL_XIAO_ESP32S3
+//   pio run -e dfrobot_firebeetle2_esp32s3   ->  -DCAMERA_MODEL_DFROBOT_ESP32S3
+//   pio run -e dfrobot_romeo_esp32s3         ->  -DCAMERA_MODEL_DFROBOT_ESP32S3
+//   pio run -e esp32cam                      ->  -DCAMERA_MODEL_AI_THINKER
 //
 // That also picks up the right flash size, PSRAM mode and partition table via
 // sdkconfig.defaults.<target>. Building outside those environments falls back
 // to the XIAO map. Pin maps live in camera_pins.h.
-#if !defined(CAMERA_MODEL_XIAO_ESP32S3) && !defined(CAMERA_MODEL_AI_THINKER)
+#if !defined(CAMERA_MODEL_XIAO_ESP32S3) && !defined(CAMERA_MODEL_DFROBOT_ESP32S3) && \
+    !defined(CAMERA_MODEL_AI_THINKER)
 #define CAMERA_MODEL_XIAO_ESP32S3
 #endif
 

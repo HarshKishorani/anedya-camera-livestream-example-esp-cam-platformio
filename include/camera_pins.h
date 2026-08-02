@@ -46,6 +46,34 @@
 #define CAM_PIN_HREF  47
 #define CAM_PIN_PCLK  13
 
+#elif defined(CAMERA_MODEL_DFROBOT_ESP32S3)
+
+/* ── DFRobot FireBeetle 2 ESP32-S3 / Romeo ESP32-S3 (OV2640) ────────────────
+ * Both boards expose the camera on the same pins, so one map covers them.
+ * Pin values from arduino-esp32's CameraWebServer camera_pins.h, where they are
+ * spelled CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3 / _Romeo_ESP32S3.
+ * PWDN and RESET are not wired out — leave at -1.
+ *
+ * Camera support needs the PSRAM variants (FireBeetle 2 ESP32-S3 N16R8); the
+ * no-PSRAM SKUs cannot allocate a frame buffer.                              */
+#define BOARD_NAME "DFRobot ESP32-S3 (FireBeetle 2 / Romeo)"
+#define CAM_PIN_PWDN  -1
+#define CAM_PIN_RESET -1
+#define CAM_PIN_XCLK  45
+#define CAM_PIN_SIOD  1
+#define CAM_PIN_SIOC  2
+#define CAM_PIN_D7    48
+#define CAM_PIN_D6    46
+#define CAM_PIN_D5    8
+#define CAM_PIN_D4    7
+#define CAM_PIN_D3    4
+#define CAM_PIN_D2    41
+#define CAM_PIN_D1    40
+#define CAM_PIN_D0    39
+#define CAM_PIN_VSYNC 6
+#define CAM_PIN_HREF  42
+#define CAM_PIN_PCLK  5
+
 #elif defined(CAMERA_MODEL_AI_THINKER)
 
 /* ── ESP32-CAM style boards (OV2640 / OV3660) ───────────────────────────────
@@ -74,5 +102,5 @@
 #define CAM_PIN_PCLK  22
 
 #else
-#error "No camera board selected — build with an env from platformio.ini, or define CAMERA_MODEL_XIAO_ESP32S3 / CAMERA_MODEL_AI_THINKER in app_config.h"
+#error "No camera board selected — build with an env from platformio.ini, or define CAMERA_MODEL_XIAO_ESP32S3 / CAMERA_MODEL_DFROBOT_ESP32S3 / CAMERA_MODEL_AI_THINKER in app_config.h"
 #endif
